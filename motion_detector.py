@@ -14,7 +14,6 @@ class MotionDetector:
         self.contours = []
         self.bounds = []
         self.mask = []
-        # Inicializa o subtrator de fundo MOG2
         self.backSub = open_cv.createBackgroundSubtractorMOG2()
 
     def detect_motion(self):
