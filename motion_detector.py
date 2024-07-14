@@ -4,7 +4,9 @@ import logging
 from drawing_utils import draw_contours
 from colors import COLOR_GREEN, COLOR_WHITE, COLOR_BLUE
 
+
 class MotionDetector:
+    LAPLACIAN = 1.5
     DETECT_DELAY = 1
 
     def __init__(self, video, coordinates, start_frame):
@@ -14,7 +16,6 @@ class MotionDetector:
         self.contours = []
         self.bounds = []
         self.mask = []
-        self.backSub = open_cv.createBackgroundSubtractorMOG2()
 
     def detect_motion(self):
         capture = open_cv.VideoCapture(self.video)
@@ -61,17 +62,15 @@ class MotionDetector:
             if not result:
                 raise CaptureReadError("Error reading video capture on frame %s" % str(frame))
 
-            fgMask = self.backSub.apply(frame)
-            fgMask = open_cv.dilate(fgMask, None, iterations=2)
-
-            grayed = open_cv.cvtColor(frame, open_cv.COLOR_BGR2GRAY)
+            blurred = open_cv.GaussianBlur(frame.copy(), (5, 5), 3)
+            grayed = open_cv.cvtColor(blurred, open_cv.COLOR_BGR2GRAY)
             new_frame = frame.copy()
             logging.debug("new_frame: %s", new_frame)
 
             position_in_seconds = capture.get(open_cv.CAP_PROP_POS_MSEC) / 1000.0
 
             for index, c in enumerate(coordinates_data):
-                status = self.__apply(fgMask, index, c)
+                status = self.__apply(grayed, index, c)
 
                 if times[index] is not None and self.same_status(statuses, index, status):
                     times[index] = None
@@ -99,19 +98,21 @@ class MotionDetector:
         capture.release()
         open_cv.destroyAllWindows()
 
-    def __apply(self, fgMask, index, p):
+    def __apply(self, grayed, index, p):
         coordinates = self._coordinates(p)
         logging.debug("points: %s", coordinates)
 
         rect = self.bounds[index]
         logging.debug("rect: %s", rect)
 
-        roi_mask = fgMask[rect[1]:(rect[1] + rect[3]), rect[0]:(rect[0] + rect[2])]
+        roi_gray = grayed[rect[1]:(rect[1] + rect[3]), rect[0]:(rect[0] + rect[2])]
+        laplacian = open_cv.Laplacian(roi_gray, open_cv.CV_64F)
+        logging.debug("laplacian: %s", laplacian)
 
         coordinates[:, 0] = coordinates[:, 0] - rect[0]
         coordinates[:, 1] = coordinates[:, 1] - rect[1]
 
-        status = np.mean(roi_mask * self.mask[index]) > 0
+        status = np.mean(np.abs(laplacian * self.mask[index])) < MotionDetector.LAPLACIAN
         logging.debug("status: %s", status)
 
         return status
