@@ -12,8 +12,8 @@ def capture_frame(video_path, frame_number, output_image_path):
 
     cap.release()
 
-video_path = 'videos/video.mp4'
-frame_number = 150  
-output_image_path = 'images/parking_img.png'
+video_path = 'videos/video6.mp4'
+frame_number = 1
+output_image_path = 'images/imagem6.png'
 
 capture_frame(video_path, frame_number, output_image_path)
